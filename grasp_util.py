@@ -86,8 +86,7 @@ def get_experiment_data(result):
 
 def get_trials_info(eeg, eeg_ts, markers, marker_ts):
     # Create a label and trial numbers per timestamp
-    # TODO: Change string labels to numerical
-
+    
     # Find which markers correspond to the start and end of a trial
     trial_start_mask = [marker[0].split(';')[0]=='start' for marker in markers]
     trial_end_mask = [marker[0].split(';')[0]=='end' for marker in markers]
@@ -133,9 +132,8 @@ def is_file_to_skip(filename,
         return True
     
     if len(electrode_filenames) > 0:
-        # If there is no electrode_location file with the same KHxx identifier, return True
-        pattern = '(?<=sEEG\\\\)\w\w(\d|\d\d)(?=\\\\)' # Finds KHx or KHxx if it follows directly after 'sEEG/' 
-                                                    # and is follow by a backslash
+        # If there is no electrode_location file with the same identifier, return True
+        pattern = '(?<=sEEG\\\\)\w\w(\d|\d\d)(?=\\\\)'  # Finds ppt identifier
         nums = [['{:02d}'.format(int(re.findall(pattern, str(elec_filename))[0]))] for elec_filename in electrode_filenames]                               
         matches = [re.findall(pattern, str(filename)) == num for num in nums]
         if not any(matches):
@@ -149,9 +147,7 @@ def load_seeg(file, savepath=None):
     print('Loading file: {}'.format(file))
     
     result, raw_data = read_xdf(str(file))
-
-    # investigate_pink_noise2(result['Micromed']['data'])
-    
+   
     eeg, eeg_ts, markers, markers_ts = get_experiment_data(result)
     trials, trial_nums = get_trials_info(eeg, eeg_ts, markers, markers_ts)
 
@@ -192,8 +188,7 @@ def load_pickle(filename):
 
 def load_location_files(data, electrode_filenames):
     # Find matching file
-    pattern = '(?<=sEEG\\\\)\w\w(\d|\d\d)(?=\\\\)' # Finds KHx or KHxx if it follows directly after 'sEEG/' 
-                                                    # and is follow by a backslash
+    pattern = '(?<=sEEG\\\\)\w\w(\d|\d\d)(?=\\\\)'
     file = [elec_filename for elec_filename in electrode_filenames \
                 if data['subject'][2:] == '{:02d}'.format(int(re.findall(pattern, str(elec_filename))[0]))][0]
 
@@ -330,8 +325,6 @@ def filter_eeg(data,
                           method='iir',
                           verbose=0).T
 
-    # eeg = np.log(eeg**2)+0.01
-
     eeg = abs(hilbert3(eeg))
 
     return eeg
@@ -369,60 +362,7 @@ def get_power_spectrum(eeg, fs):
     fft_freqs = np.fft.rfftfreq(eeg.shape[0], d=1/fs)
     return {'freqs': fft_freqs, 
             'ps': ps}
-    # return np.array(ps)
 
-def investigate_pink_noise2(data):
-    # https://github.com/raphaelvallat/yasa/blob/master/yasa/spectral.py
-    # NOTE: An estimate of the original PSD can be calculated by simply
-    #       adding ``psd = psd_aperiodic + psd_oscillatory``.
-    import matplotlib.pyplot as plt
-
-    fs = 1024
-    data_sh = data[:fs*60]
-    freqs, psd_aperiodic, psd_osc, fit = \
-        yasa.irasa(data=data_sh.T, 
-                    sf=1024,
-                    ch_names=None,
-                    band=(1, 100))
-
-    plt.plot(freqs, abs(psd_aperiodic[0,:]))
-    plt.plot(freqs, abs(psd_osc[0,:]))
-    plt.show()
-    print('done')
-
-    return 0
-
-def get_fractal_component(eeg, fs):
-    '''NOTE: win_sec should be at least 2*1 / band[0], however,
-             This is already windowed. 0.1 was the first window
-             length for which is would work (which corresponds 
-             to a minimum freq of 10 instead of 1.). Result of 
-             the function is therefor likely unreliable, but on
-             the other hand, the psd angle of 10Hz and higher 
-             could still be the same. Maybe check visually. Alpha
-             will be lower than its 'true' value then.
-    '''
-    freqs, psd_aperiodic, psd_osc, fit = \
-        yasa.irasa(data=eeg.T, 
-                   sf=fs,
-                   band=(1, 100),
-                   win_sec=0.1
-                   )
-                
-    return fit['Slope']
-
-def generate_complex_morlet_wavelet(t, f, n):
-    # n = number of periods
-    # f = frequency
-    # t = time
-
-    s = n / (2*np.pi*f)
-
-    A = 1/((s*np.sqrt(np.pi))**(1/2))
-    real = (-t**2)/(2*s**2)
-    imag = (2*np.pi*f*t)
-    cmw = A*np.exp(real + 1j*imag)
-    return cmw
 
 def calculate_windows(data, fs, window_length, frameshift, aggr='mean',
                       apply_per_window={}):
@@ -531,16 +471,6 @@ def combine_features_with_channels(data, features_to_combine, exclude=[]):
     input  = data: [samples x ch] * n_features
     output = data: [samples x ch*features] '''
     
-    # TODO: add exclude
-    # ADD chxfeatures to preprocessed eeg
-
-    # ata['eeg']
-    # feature_names = data['channel_names']
-    
-    
-    # feature_names = np.array([])
-    # features = np.array([])
-
     feature_names = []
     features = []
 
@@ -660,15 +590,8 @@ def split_per_trial(data, features):
     input  = data:   [samples x ch*features]
     output = data:   [samples x ch*features x trials]
              labels: [labels]  
-
-    TODO: Make this more automated
     '''
-    # trial_length = sum(data['trial_numbers']==1)  # Get the length of the first trial #TODO Assumes first trial is correct...
-    # trial_rest_length = \
-    #      np.min(np.where(data['trial_numbers']==2)) - \
-    #     (np.max(np.where(data['trial_numbers']==1))+1)  # Length between trial 1 and 2
-    # trial_size = 40
-    # trial_size_rest = 20
+
 
     # First trial is labeled zero, which is the same label as
     # rest, so this fix adds 1 to the trial numbers to make it
@@ -717,10 +640,6 @@ def split_per_trial(data, features):
         'non_rest': trials_non_rest,
         'non_rest_labels': non_rest_labels}
 
-    # result = {'non_rest': {'data': trials_non_rest,
-    #                        'labels': non_rest_labels},
-    #           'rest': {'data': trials_rest,
-    #                    'labels': []}}
     return result
 
 def trial_per_window(data, features):
@@ -833,27 +752,3 @@ def combine_data_to_x_y(data):
 
     return x, y
 
-def get_rotb_frequencies():
-    ''' Supposedly the independent oscillators,
-    the averages of these oscilators allign perfectly
-    on a natural logarithmic scale (see p114)
-    
-    Returned bands in order:
-    slow 4      [15, 40] s
-    slow 3      [5, 15] s
-    slow 2      [2, 5] s
-    slow 1      [0.7, 2] s
-    delta       [1.5 - 4] Hz
-    theta       [4, 10] Hz
-    beta        [10, 30] Hz
-    gamma       [30, 80] Hz
-    fast        [80, 200] Hz
-    ultra fast  [200, 600] Hz
-    '''
-    start = 0.05
-    end = 141.48
-    freqs = np.linspace(np.log(start), np.log(end), 9)
-    diff_freqs = np.diff(freqs)[0]
-    freqs = np.append(freqs, freqs[-1]+diff_freqs)
-    
-    return freqs
