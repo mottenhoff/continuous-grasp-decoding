@@ -142,10 +142,6 @@ def plot_powerspectrograms_per_electrode(data, savepath):
                 ax.set_ylim(1, mean_over_trials.shape[2])
                 ax.set_yticklabels(y_ticklabels)
 
-                # ax.set_yticks(np.linspace(0, mean_over_trials.shape[2], n_yticks))
-                # y_ticklabels = np.linspace(0, data['fs']/2, 3, dtype=np.int32)
-                # ax.set_yticklabels(y_ticklabels)
-
                 show_x = False
                 show_y = False
                 if i==0:
@@ -164,7 +160,6 @@ def plot_powerspectrograms_per_electrode(data, savepath):
         plt.suptitle('Average Spectrogram [channel x electrode]\n{}'.format(label.upper()))
 
         # Save it
-        # plt.show()
         plt.savefig('{}/{}_{}.png'.format(folder, 'psd', label))
 
 def plot_per_electrode_window(data, savepath):
@@ -795,8 +790,6 @@ def plot_bargrid_score_per_ppt_no_loc(all_results, savepath, plot_all=False):
         else:
             imag = scores.copy()
 
-
-
     # Extract scores and put them in useful format
     # results = all_results['gamma']
     # scores = {}
@@ -998,9 +991,9 @@ def plot_all(data, results, savepath):
 if __name__=='__main__':
     results = {}
     for band in ['beta_gamma']: #'['beta', 'gamma']:
-        path = r'C:\Users\p70066129\Projects\Grasp\Figures\{}_1000_100'.format(band)
+        path = r'.\Figures\{}_1000_100'.format(band)
         with open('{}/{}_results.pkl'.format(path, band), 'rb') as file:
             results[band] = pickle.load(file)
     
-    plot_bargrid_score_per_ppt_no_loc(results, r'C:\Users\p70066129\Projects\Grasp\Figures')
+    plot_bargrid_score_per_ppt_no_loc(results, r'.\Figures')
 
