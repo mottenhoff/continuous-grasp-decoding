@@ -11,12 +11,9 @@ import scipy.signal
 from sklearn.metrics import roc_auc_score
 
 # Local
-paths = [r"./Analysis\classifiers/"]
+paths = [r".\classifiers/"]
 for path in paths:
     sys.path.insert(0, path)
-
-# Utility
-# from grasp_util import investigate_pink_noise
 
 from grasp_util import get_filenames
 from grasp_util import load_seeg
@@ -79,9 +76,7 @@ def preprocess_data(data, frequency_bands={}, windows=[],
 
     # Functions to apply when the data is being windowed
     window_fns = {
-        # TODO: If power spectrum then ...
         'psd': get_power_spectrum,
-        # 'pld': get_fractal_component
         }
 
     # Create windows
@@ -100,36 +95,12 @@ def preprocess_data(data, frequency_bands={}, windows=[],
 def extract_features(data, features_to_combine=[]):
     ''' frequencybands should also be treated as
     features instead of preprocessing.
-    TODO: Beta bursts
-    TODO: Common spatial patterns
-    
-    TODO: Include column labels
-    
     '''
-    ## Any features that need to be calculated
-    #   but I guess most is done already in preprocess
-     
-    
-    ## Prepare for learning
-        # Combine features with columns
-
 
     # Split and combine features per channel to use for learning
-    # TODO: Also leave the unfiltered ERPS in.
     features, feature_names = combine_features_with_channels(data, features_to_combine)
     
-    # features = split_per_trial(data, features)
     features = trial_per_window(data, features)
-
-    # TODO: figure out why if this is necessary, and combine it with the
-    #       the above feature call
-    # # Split all exploratory feautures 
-    # for feature, values in data['features'].items():
-    #     if feature in features_to_combine:
-    #         continue
-    #     features[feature] = split_per_trial(data, values)
-    #     # features['psd'] = split_per_trial(data, data['features']['psd'])
-
 
     # Add extra info
     features['fs'] = data['fs']
@@ -155,13 +126,6 @@ def extract_features(data, features_to_combine=[]):
     return results
 
 def perform_statistics(features):
-    # NOTE: Only use statistics for exporatory analysis here. 
-    #       For features, perform it after train_test_split
-    # TODO: Implement
-    
-    # features['rest_vs_non_rest'] = perform_stat_test(features['rest'],  
-    #                                                  features['non_rest'])
-
     # Label permutation test
 
     #  1 Get labels
@@ -184,10 +148,6 @@ def perform_statistics(features):
         test_size = 1/repetitions
         test_samples = int(test_size*labels.shape[0])
         
-        # permuted_labels = np.arange(labels.shape[0])
-        # np.random.shuffle(permuted_labels)
-        # permuted_labels = labels[permuted_labels].copy()
-        
         aucs = []
         for rep in range(repetitions):
             test_idc = np.arange(rep*test_samples, rep*test_samples+test_samples)
@@ -197,7 +157,6 @@ def perform_statistics(features):
 
             fold = labels[test_idc, :].copy()
             permuted_fold = labels[permuted_idc, :].copy()
-            # permuted_fold = permuted_labels[test_idc, :].copy()
 
             try:
                 auc = roc_auc_score(fold, permuted_fold, multi_class='ovo')
@@ -207,12 +166,12 @@ def perform_statistics(features):
                 auc = roc_auc_score(fold[:, included_classes], permuted_fold[:, included_classes])
 
             aucs += [auc]
-            # print('aucs', aucs)
+
         mean_aucs += [np.mean(aucs)]
+        
     # Get the 95% Cutoff (== 95th value of sorted array)
     cutoff_value = np.sort(mean_aucs)[int(len(mean_aucs)*.95)]
     print('Cutoff value: {:.3f} [{:d} permutations]'.format(cutoff_value, n_permutations))
-    # print('maucs', mean_aucs)
 
     return features
 
@@ -221,9 +180,8 @@ def train_score_evaluate(data):
     x, y = combine_data_to_x_y(data)
 
     classifier = LDA()
-    # classifier = RFC()
-
     repetitions = 10
+    
     # Learn and score
     scores = []
     for rep in range(repetitions):
@@ -273,15 +231,11 @@ def prepare_results_matrix(results, locs, count_locs=False, savepath=None):
     if savepath:
         df.to_excel('{}\performance_locs_{}.xlsx'.format(savepath, 'counted' if count_locs else ''))
 
-    # Change score_name and score_value to named columns
-
     return df
 
 
 if __name__ == "__main__":
-    # path_drive = r'\\server12.np.unimaas.nl'
     
-    # TODO: add this (and other features descriptions) to data dictionary
     all_freq_bands = [
         # {"beta":  [12, 30]},
         # {"gamma": [55, 90]},
@@ -293,33 +247,19 @@ if __name__ == "__main__":
     for freq_bands in all_freq_bands:
        
         signal_reference = None  # ['CER', ]
-
-        # windows = [0.2, 0.1] # [window size, frameshift] # Ms [0.1, 0.05]
-        windows = [1, 0.1]
+        windows = [1, 0.1] # [window size, frameshift]
 
         features_to_combine = ['frequency_bands']
-
-#         subjects_to_exclude = ['kh07', 'kh08', #'kh09', 
-# 'kh10', 'kh11', 'kh12', 'kh13', 'kh14', 'kh15', 'kh16', 'kh17', 'kh18', 'kh19']  #, 'kh12', 'kh14']#        # ['kh7' -> 'kh13']
-#         subjects_to_exclude = ['kh07', 'kh08', 'kh09', 
-# 'kh10', 
-# 'kh11', 'kh12', 'kh13', 'kh14', 'kh15', 'kh16', 'kh17', 'kh18', 'kh19']
-        
-        subjects_to_exclude = ['kh7', 'kh8'] # Complete
-        subjects_to_exclude = ['kh07', 'kh08'] # Complete
-        experiment_type_to_exclude = []#'imagine']#'imagine']  # ['imagine', 'grasp']'
+        subjects_to_exclude = [] # Complete
+        experiment_type_to_exclude = [] # ['imagine', 'grasp']'
         reload_raw = 1
         load_locations = 0
         save_results = 1
         save_raw_data = 0
         power_spectrum = 0 
 
-        # path_drive = r'Z:\sEEG' # OLD University drive 
-        # path_drive = r'L:\FHML_MHeNs\sEEG'  # University drive
-        path_drive = r'F:\data\sEEG' # Local external hard 
-        
-        # path_local = r'C:\Users\p70066129\Data\BCI\sEEG'
-        path_local = r'F:\data\sEEG'
+        path_drive = r'<some_path>' # Local external hard 
+        path_local = r'<some_path>'
 
         # Path raw --> Drive
         # Path processed --> local
@@ -362,12 +302,11 @@ if __name__ == "__main__":
                 if data == None:
                     continue
             
-            features = extract_features(data, features_to_combine) # considered renaming is prepare for learning
+            features = extract_features(data, features_to_combine) 
             
-            # TODO: Why is this within the loop?
-            features = perform_statistics(features)  # Not implemented
+            features = perform_statistics(features)
 
-            # Explore, learn, plot - Clean up below below
+            # Explore, learn, plot
             for subj, exps in features.items():
                 if subj in subjects_to_exclude:
                     continue
@@ -377,8 +316,6 @@ if __name__ == "__main__":
                     if exp in experiment_type_to_exclude:
                         continue
                     path_exp = '{}/{}/{}'.format(path_local, subj, exp)
-                    # if not exists(path_exp):
-                    #     mkdir(path_exp)
                     if exp not in results[subj].keys():
                         results[subj][exp] = {}
                     for date, data in dates.items():
@@ -386,23 +323,18 @@ if __name__ == "__main__":
                         
                         print('\n{} {} {}'.format(subj, exp, date))
                         results[subj][exp][date] = train_score_evaluate(data)
-
-                        # plot_all(data, results, savepath)
-                        # print('Finished {} {} {}'.format(subj, exp, date))
                         
                         channel_locs[subj] = data.get('channel_names', {})
             savepath = '{}/{}'.format(path_local, subj)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-            # plot_bargrid(data, {subj: results[subj]}, channel_locs[subj], savepath)
-                    # plot_all(data, results, savepath)
+
             print('')
 
-        # band = list(freq_bands.keys())[0]
         if not freq_bands.keys():
             band = 'raw'
         else:
             band = '_'.join(freq_bands.keys())
         
-        savepath = r'C:\Users\p70066129\Projects\Grasp\Figures\{:s}_1000_100'.format(band)
+        savepath = r'.\Figures\{:s}_1000_100'.format(band)
         with open('{}\{}_results.pkl'.format(savepath, band), 'wb') as file:
             pickle.dump(results, file)
 
@@ -417,8 +349,3 @@ if __name__ == "__main__":
     #              plot_all=True)
     # plot_bargrid_score_per_ppt(data, results, [], savepath, plot_all=True)
     print('Done')
-
-
-# df = prepare_results_matrix(results, channel_locs, r'C:\Users\p70066129\Projects\Grasp')
-# from grasp_plot import plot_correlation_matrix
-# plot_correlation_matrix(df, savepath)
