@@ -135,7 +135,6 @@ def perform_statistics(features):
     #  5 Compare mean auc with aucs of trained models. If higher, then signifantly above chance.
     #       this is allowed because the base distribution is the same!
 
-    labels = features['kh09']['grasp']['20200210105324']['Original']['label']
     labels = np.unique(labels, return_inverse=True)[1]
     # One hot encode
     n_classes = np.max(labels)+1
